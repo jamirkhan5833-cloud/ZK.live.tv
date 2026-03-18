@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>ZK LIVE TV</title>
+
+<!-- ✅ FIREBASE SDK — Auth + Analytics ONLY (100% FREE) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#080c14;--bg2:#0d1220;--card:#111827;
+  --red:#e50914;--red2:#ff1f2e;
+  --tx:#f0f4ff;--mu:#7a8aaa;--br:#1e2a3a;
+}
+body{background:var(--bg);color:var(--tx);font-family:'Segoe UI',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* LOADING */
+#fbLoading{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#fbLoading h2{font-size:2rem;font-weight:900;color:var(--red);letter-spacing:3px}
+#fbLoading h2 span{color:#fff}
+#fbLoading p{color:var(--mu);font-size:.85rem}
+.spinner{width:48px;height:48px;border:4px solid var(--br);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* AUTH */
+#authPage{position:fixed;inset:0;z-index:300;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.auth-logo{text-align:center;margin-bottom:24px}
+.auth-logo h1{font-size:2.5rem;font-weight:900;color:var(--red);letter-spacing:3px}
+.auth-logo h1 span{color:#fff}
+.auth-logo p{color:var(--mu);font-size:.85rem;margin-top:4px}
+.auth-box{background:var(--card);border:1px solid var(--br);border-radius:20px;padding:24px 20px;width:100%;max-width:380px}
+.auth-tabs{display:flex;background:var(--bg2);border-radius:10px;padding:3px;margin-bottom:20px;gap:3px}
+.atab{flex:1;padding:9px;text-align:center;border-radius:8px;cursor:pointer;font-size:.88rem;color:var(--mu);border:none;background:none;font-family:inherit;transition:all .2s}
+.atab.on{background:var(--red);color:#fff;font-weight:700}
+.igrp{margin-bottom:12px}
+.igrp label{font-size:.78rem;color:var(--mu);display:block;margin-bottom:5px}
+.igrp input{width:100%;background:var(--bg2);border:1px solid var(--br);border-radius:9px;padding:11px 13px;color:var(--tx);font-size:.92rem;font-family:inherit;outline:none;transition:border .2s}
+.igrp input:focus{border-color:var(--red)}
+.abtn{width:100%;padding:13px;background:linear-gradient(135deg,#e50914,#b00710);border:none;border-radius:11px;color:#fff;font-weight:700;font-size:1rem;cursor:pointer;font-family:inherit;margin-top:6px;transition:opacity .2s}
+.abtn:disabled{opacity:.5;cursor:not-allowed}
+.abtn.google{background:linear-gradient(135deg,#4285f4,#1a73e8);margin-top:8px}
+.aerr{color:#ff6b6b;font-size:.78rem;text-align:center;margin-top:7px;min-height:18px}
+.divider{text-align:center;color:var(--mu);font-size:.75rem;margin:10px 0}
+
+/* MAIN APP */
+#mainApp{display:none}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:100;background:rgba(8,12,20,.97);border-bottom:1px solid var(--br);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
+.hlogo{font-size:1.3rem;font-weight:900;color:var(--red);letter-spacing:1.5px}
+.hlogo span{color:#fff}
+.hlive{display:inline-flex;align-items:center;gap:3px;background:var(--red);color:#fff;font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:4px;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+.fb-badge{background:rgba(255,160,0,.15);border:1px solid rgba(255,160,0,.3);color:#ffa000;font-size:.55rem;padding:2px 6px;border-radius:4px;font-weight:700}
+.profile-btn{width:36px;height:36px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+
+/* PLAYER */
+#playerWrap{width:100%;background:#000;position:relative}
+#player{width:100%;height:56vw;max-height:280px;display:block;background:#000;object-fit:contain}
+#playerWrap.fs{position:fixed;inset:0;z-index:9999;width:100vw;height:100vh;background:#000;display:flex;flex-direction:column}
+#playerWrap.fs #player{width:100vw;height:calc(100vh - 48px);max-height:none;flex:1}
+#playerWrap.fs #nowPlaying{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85)}
+#closeFs{display:none;position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);border:2px solid #fff;color:#fff;font-size:1.2rem;width:38px;height:38px;border-radius:50%;cursor:pointer;z-index:10000;align-items:center;justify-content:center;font-weight:700}
+#playerWrap.fs #closeFs{display:flex}
+#pipBtn{display:none;position:absolute;top:10px;left:10px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:.7rem;padding:5px 9px;border-radius:6px;cursor:pointer;z-index:10000}
+#playerWrap.fs #pipBtn{display:block}
+#nowPlaying{background:#111;padding:8px 12px;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between;gap:6px}
+.wl-on{display:inline-flex;align-items:center;gap:3px;font-size:.6rem;padding:2px 6px;border-radius:4px;background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.3);color:#4caf50}
+
+/* CATEGORIES */
+.cat-scroll{display:flex;gap:8px;padding:12px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--br)}
+.cat-scroll::-webkit-scrollbar{display:none}
+.cat-btn{padding:7px 14px;border-radius:20px;border:1px solid var(--br);background:var(--card);color:var(--mu);font-size:.78rem;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .2s;flex-shrink:0}
+.cat-btn.on{background:var(--red);color:#fff;border-color:var(--red);font-weight:700}
+
+/* SEARCH */
+.search-wrap{padding:10px 12px;background:var(--bg2);border-bottom:1px solid var(--br)}
+.search-wrap input{width:100%;padding:10px 14px;border:1px solid var(--br);border-radius:10px;background:var(--card);color:var(--tx);font-size:.9rem;outline:none;font-family:inherit}
+.search-wrap input:focus{border-color:var(--red)}
+
+/* CHANNELS */
+#channelCount{padding:6px 12px;font-size:.75rem;color:var(--mu);background:var(--bg2)}
+#channels{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:10px;padding-bottom:80px}
+.channel{background:var(--card);padding:14px 10px;border-radius:12px;cursor:pointer;text-align:center;font-size:.8rem;border:1px solid var(--br);transition:all .2s;line-height:1.4}
+.channel:active{transform:scale(.96)}
+.channel.active{background:var(--red);border-color:var(--red2)}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(8,12,20,.97);border-top:1px solid var(--br);display:flex;height:58px}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;border:none;background:none;color:var(--mu);font-family:inherit;font-size:.6rem}
+.bnav-btn .bico{font-size:1.2rem}
+.bnav-btn.on{color:var(--red)}
+
+/* PAGES */
+.pg{display:none;padding-bottom:70px}
+.pg.on{display:block}
+
+/* PROFILE */
+.profile-hero{background:linear-gradient(135deg,#1a0a0d,#0d1220);padding:30px 20px;text-align:center;border-bottom:1px solid var(--br)}
+.profile-avatar{width:80px;height:80px;border-radius:50%;background:var(--red);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;border:3px solid var(--red2)}
+.profile-name{font-size:1.3rem;font-weight:700;margin-bottom:4px}
+.profile-email{color:var(--mu);font-size:.85rem}
+.fb-user-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(255,160,0,.15);border:1px solid rgba(255,160,0,.3);color:#ffa000;font-size:.7rem;padding:3px 8px;border-radius:6px;margin-top:8px;font-weight:700}
+
+/* ANALYTICS CARD */
+.analytics-card{background:var(--card);margin:12px;border-radius:14px;border:1px solid var(--br);padding:16px}
+.analytics-card h3{font-size:.85rem;color:var(--mu);margin-bottom:12px}
+.analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.a-stat{background:var(--bg2);border-radius:10px;padding:12px 8px;text-align:center}
+.a-stat .a-num{font-size:1.4rem;font-weight:900;color:var(--red)}
+.a-stat .a-lbl{font-size:.65rem;color:var(--mu);margin-top:3px}
+
+/* PROFILE CARD */
+.profile-card{background:var(--card);margin:12px;border-radius:14px;border:1px solid var(--br);overflow:hidden}
+.profile-item{display:flex;align-items:center;gap:14px;padding:16px;border-bottom:1px solid var(--br);cursor:pointer}
+.profile-item:last-child{border-bottom:none}
+.profile-item .pico{font-size:1.3rem;width:36px;text-align:center}
+.profile-item .ptxt{flex:1}
+.profile-item .ptxt h4{font-size:.9rem;font-weight:600}
+.profile-item .ptxt p{font-size:.75rem;color:var(--mu);margin-top:2px}
+.profile-item .parr{color:var(--mu);font-size:.9rem}
+.logout-btn{margin:12px;padding:14px;background:rgba(229,9,20,.1);border:1px solid var(--red);border-radius:12px;color:var(--red);font-size:.9rem;font-weight:700;cursor:pointer;width:calc(100% - 24px);font-family:inherit}
+
+/* LANGUAGE MODAL */
+#langModal{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.7);align-items:flex-end;justify-content:center}
+#langModal.show{display:flex}
+.lang-sheet{background:var(--card);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px}
+.lang-sheet h3{text-align:center;margin-bottom:16px;font-size:1rem}
+.lang-opt{display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;cursor:pointer;margin-bottom:8px;border:1px solid var(--br)}
+.lang-opt.on{border-color:var(--red);background:rgba(229,9,20,.1)}
+.lang-opt .lcheck{width:20px;height:20px;border-radius:50%;border:2px solid var(--br);margin-left:auto}
+.lang-opt.on .lcheck{background:var(--red);border-color:var(--red)}
+
+/* LOADING */
+#loading{text-align:center;padding:30px;color:var(--mu);display:none}
+
+/* TOAST */
+#toast{position:fixed;bottom:75px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 20px;border-radius:10px;font-size:.82rem;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- FIREBASE LOADING -->
+<div id="fbLoading">
+  <h2>ZK <span>LIVE</span> TV</h2>
+  <div class="spinner"></div>
+  <p>🔥 Connect ho raha hai...</p>
+</div>
+
+<!-- AUTH PAGE -->
+<div id="authPage">
+  <div class="auth-logo">
+    <h1>ZK <span>LIVE</span> TV</h1>
+    <p>Free • HD • Live Channels 🔥</p>
+  </div>
+  <div class="auth-box">
+    <div class="auth-tabs">
+      <button class="atab on" onclick="switchTab('login',this)">Login</button>
+      <button class="atab" onclick="switchTab('signup',this)">Sign Up</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginForm">
+      <div class="igrp">
+        <label>📧 Email</label>
+        <input type="email" id="li-email" placeholder="Email daalo">
+      </div>
+      <div class="igrp">
+        <label>🔒 Password</label>
+        <input type="password" id="li-pass" placeholder="Password daalo">
+      </div>
+      <div class="aerr" id="li-err"></div>
+      <button class="abtn" id="li-btn" onclick="doLogin()">🔐 Login Karo</button>
+      <div class="divider">— ya —</div>
+      <button class="abtn google" onclick="doGoogleLogin()">🌐 Google se Login</button>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signupForm" style="display:none">
+      <div class="igrp">
+        <label>👤 Poora Naam</label>
+        <input type="text" id="su-name" placeholder="Apna naam daalo">
+      </div>
+      <div class="igrp">
+        <label>📧 Email</label>
+        <input type="email" id="su-email" placeholder="Email daalo">
+      </div>
+      <div class="igrp">
+        <label>🔒 Password</label>
+        <input type="password" id="su-pass" placeholder="6+ characters">
+      </div>
+      <div class="aerr" id="su-err"></div>
+      <button class="abtn" id="su-btn" onclick="doSignup()">✅ Account Banao</button>
+      <div class="divider">— ya —</div>
+      <button class="abtn google" onclick="doGoogleLogin()">🌐 Google se Signup</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp">
+  <header>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span class="hlogo">ZK <span>TV</span></span>
+      <span class="hlive">● LIVE</span>
+      <span class="fb-badge">🔥 Firebase</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="profile-btn" id="profileInitial" onclick="showPage('pgProfile',document.querySelector('.bnav-btn:last-child'))">Z</button>
+    </div>
+  </header>
+
+  <!-- HOME PAGE -->
+  <div class="pg on" id="pgHome">
+    <div id="playerWrap">
+      <button id="closeFs" onclick="exitFs()">✕</button>
+      <button id="pipBtn" onclick="startPiP()">⧉ PiP</button>
+      <video id="player" controls autoplay playsinline
+        webkit-playsinline
+        x5-playsinline
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="true"
+        style="width:100%;height:56vw;max-height:280px;background:#000;display:block">
+      </video>
+      <div id="nowPlaying">
+        <span style="font-size:.78rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          📺 <span id="nowChannel">👇 Neeche se channel chuniye</span>
+        </span>
+        <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
+          <span class="wl-on" id="wlBadge" style="display:none">🔆 ON</span>
+          <button onclick="zoomOut()" style="background:#1a1a2e;border:1px solid #333;color:#fff;width:28px;height:28px;border-radius:6px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+          <button onclick="zoomReset()" style="background:#1a1a2e;border:1px solid #333;color:#aaa;width:28px;height:28px;border-radius:6px;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center">↺</button>
+          <button onclick="zoomIn()" style="background:#1a1a2e;border:1px solid #333;color:#fff;width:28px;height:28px;border-radius:6px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+          <button onclick="goFullscreen()" style="background:#e50914;border:none;color:#fff;padding:4px 10px;border-radius:6px;font-size:.75rem;cursor:pointer">⛶</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cat-scroll" id="catScroll"></div>
+    <div class="search-wrap">
+      <input id="searchInput" placeholder="🔍 Channel dhundho..." oninput="filterChannels()">
+    </div>
+    <div id="channelCount"></div>
+    <div id="loading">⏳ Channels load ho rahe hain...</div>
+    <div id="channels"></div>
+  </div>
+
+  <!-- PROFILE PAGE -->
+  <div class="pg" id="pgProfile">
+    <div class="profile-hero">
+      <div class="profile-avatar" id="profileAvatar">Z</div>
+      <div class="profile-name" id="profileName">User</div>
+      <div class="profile-email" id="profileEmail">📧 Email</div>
+      <div class="fb-user-badge">🔥 Firebase User ✅</div>
+    </div>
+
+    <div class="analytics-card">
+      <h3>📊 Aapki Activity</h3>
+      <div class="analytics-grid">
+        <div class="a-stat">
+          <div class="a-num" id="statChannels">0</div>
+          <div class="a-lbl">Channels</div>
+        </div>
+        <div class="a-stat">
+          <div class="a-num" id="statMins">0</div>
+          <div class="a-lbl">Minutes</div>
+        </div>
+        <div class="a-stat">
+          <div class="a-num" id="statSessions">0</div>
+          <div class="a-lbl">Sessions</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-card">
+      <div class="profile-item" onclick="showLangModal()">
+        <div class="pico">🌐</div>
+        <div class="ptxt">
+          <h4>Language / भाषा</h4>
+          <p id="langSub">Hindi / English</p>
+        </div>
+        <div class="parr">›</div>
+      </div>
+      <div class="profile-item" onclick="toggleWakeLock()">
+        <div class="pico">🔆</div>
+        <div class="ptxt">
+          <h4>Screen Always On</h4>
+          <p id="wakeLockStatus">Band — tap karke on karo</p>
+        </div>
+        <div class="parr">›</div>
+      </div>
+      <div class="profile-item" onclick="requestNotif()">
+        <div class="pico">🔔</div>
+        <div class="ptxt">
+          <h4>Notifications</h4>
+          <p id="notifStatus">Tap karke enable karo</p>
+        </div>
+        <div class="parr">›</div>
+      </div>
+      <div class="profile-item">
+        <div class="pico">ℹ️</div>
+        <div class="ptxt">
+          <h4>App Version</h4>
+          <p>ZK Live TV v3.0 🔥</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="logout-btn" onclick="doLogout()">🚪 Logout</button>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bnav">
+    <button class="bnav-btn on" onclick="showPage('pgHome',this)">
+      <span class="bico">📺</span>
+      <span id="nav-home">Home</span>
+    </button>
+    <button class="bnav-btn" onclick="showPage('pgProfile',this)">
+      <span class="bico">👤</span>
+      <span id="nav-profile">Profile</span>
+    </button>
+  </div>
+</div>
+
+<!-- LANGUAGE MODAL -->
+<div id="langModal">
+  <div class="lang-sheet">
+    <h3>🌐 Language / भाषा चुनें</h3>
+    <div class="lang-opt on" id="langHindi" onclick="setLang('hi')">
+      <span style="font-size:1.5rem">🇮🇳</span>
+      <div><div style="font-weight:700">हिंदी</div><div style="font-size:.75rem;color:#7a8aaa">Hindi</div></div>
+      <div class="lcheck"></div>
+    </div>
+    <div class="lang-opt" id="langEnglish" onclick="setLang('en')">
+      <span style="font-size:1.5rem">🇬🇧</span>
+      <div><div style="font-weight:700">English</div><div style="font-size:.75rem;color:#7a8aaa">English</div></div>
+      <div class="lcheck"></div>
+    </div>
+    <button style="width:100%;padding:12px;background:var(--red);border:none;border-radius:10px;color:#fff;font-size:.9rem;font-weight:700;margin-top:8px;cursor:pointer" onclick="closeLangModal()">Done</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ================================================
+// ✅ FIREBASE CONFIG
+// ================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCoCryJS_aLcPxmTudsTPkCf-ye73D0J6A",
+  authDomain: "zk-live-tv.firebaseapp.com",
+  projectId: "zk-live-tv",
+  storageBucket: "zk-live-tv.firebasestorage.app",
+  messagingSenderId: "329235144622",
+  appId: "1:329235144622:web:0b217c6cc54e457f51b23f",
+  measurementId: "G-Y9S9G7HRN7"
+};
+
+// Firebase Init
+let auth, analytics;
+try {
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  analytics = firebase.analytics();
+} catch(e) { console.log('Firebase error:', e); }
+
+// ================================================
+// ✅ LOCAL STORAGE — Firestore ki jagah (FREE)
+// ================================================
+function saveLocal(key, val) { localStorage.setItem('zk_' + key, JSON.stringify(val)); }
+function getLocal(key, def) { try { return JSON.parse(localStorage.getItem('zk_' + key)) || def; } catch(e) { return def; } }
+
+// ================================================
+// GLOBAL STATE
+// ================================================
+let currentUser = null;
+let currentLang = localStorage.getItem('zkLang') || 'hi';
+let allChannels = [];
+let currentCat = 'All';
+let wakeLock = null;
+let watchStart = null;
+let statChannels = getLocal('statChannels', 0);
+let statMins = getLocal('statMins', 0);
+let statSessions = getLocal('statSessions', 0);
+
+const categories = {
+  hi: ['सब','न्यूज़','एंटरटेनमेंट','स्पोर्ट्स','मूवीज़','म्यूज़िक','किड्स','धार्मिक'],
+  en: ['All','News','Entertainment','Sports','Movies','Music','Kids','Religious']
+};
+const texts = {
+  hi: { home:'होम', profile:'प्रोफाइल', search:'चैनल ढूंढो...', loading:'⏳ चैनल लोड हो रहे हैं...', logout:'🚪 लॉगआउट' },
+  en: { home:'Home', profile:'Profile', search:'Search channels...', loading:'⏳ Loading channels...', logout:'🚪 Logout' }
+};
+
+// ================================================
+// TOAST
+// ================================================
+function showToast(msg, dur=2500) {
+  let t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ================================================
+// FIREBASE AUTH
+// ================================================
+window.onload = () => {
+  auth.onAuthStateChanged(user => {
+    document.getElementById('fbLoading').style.display = 'none';
+    if (user) {
+      currentUser = user;
+      startApp();
+    } else {
+      document.getElementById('authPage').style.display = 'flex';
+    }
+  });
+};
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.atab').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
+}
+
+// Signup
+async function doSignup() {
+  let name = document.getElementById('su-name').value.trim();
+  let email = document.getElementById('su-email').value.trim();
+  let pass = document.getElementById('su-pass').value.trim();
+  let err = document.getElementById('su-err');
+  let btn = document.getElementById('su-btn');
+  if (!name) { err.textContent = '❌ Naam daalo'; return; }
+  if (!email) { err.textContent = '❌ Email daalo'; return; }
+  if (pass.length < 6) { err.textContent = '❌ Password 6+ characters ka ho'; return; }
+  btn.disabled = true; btn.textContent = '⏳ Ban raha hai...'; err.textContent = '';
+  try {
+    let cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await cred.user.updateProfile({ displayName: name });
+    // LocalStorage mein save karo
+    saveLocal('user_' + cred.user.uid, { name, email, createdAt: Date.now() });
+    analytics.logEvent('sign_up', { method: 'email' });
+    showToast('✅ Account ban gaya!');
+  } catch(e) {
+    err.textContent = '❌ ' + fbError(e.code);
+    btn.disabled = false; btn.textContent = '✅ Account Banao';
+  }
+}
+
+// Login
+async function doLogin() {
+  let email = document.getElementById('li-email').value.trim();
+  let pass = document.getElementById('li-pass').value.trim();
+  let err = document.getElementById('li-err');
+  let btn = document.getElementById('li-btn');
+  if (!email) { err.textContent = '❌ Email daalo'; return; }
+  if (!pass) { err.textContent = '❌ Password daalo'; return; }
+  btn.disabled = true; btn.textContent = '⏳ Login ho raha hai...'; err.textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+    analytics.logEvent('login', { method: 'email' });
+    showToast('✅ Login ho gaya!');
+  } catch(e) {
+    err.textContent = '❌ ' + fbError(e.code);
+    btn.disabled = false; btn.textContent = '🔐 Login Karo';
+  }
+}
+
+// Google Login
+async function doGoogleLogin() {
+  let provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await auth.signInWithPopup(provider);
+    analytics.logEvent('login', { method: 'google' });
+    showToast('✅ Google se login ho gaya!');
+  } catch(e) {
+    showToast('❌ ' + fbError(e.code));
+  }
+}
+
+// Logout
+async function doLogout() {
+  saveStats();
+  await auth.signOut();
+  currentUser = null;
+  document.getElementById('authPage').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+  showToast('👋 Logout ho gaya');
+}
+
+// Firebase error Hindi mein
+function fbError(code) {
+  const e = {
+    'auth/user-not-found': 'Email registered nahi hai',
+    'auth/wrong-password': 'Password galat hai',
+    'auth/email-already-in-use': 'Email pehle se registered hai',
+    'auth/weak-password': 'Password bahut weak hai',
+    'auth/invalid-email': 'Email sahi nahi hai',
+    'auth/too-many-requests': 'Bahut zyada try kiya, baad mein try karo',
+    'auth/network-request-failed': 'Internet check karo',
+    'auth/popup-closed-by-user': 'Google login cancel kiya',
+  };
+  return e[code] || 'Kuch error aaya, dobara try karo';
+}
+
+// ================================================
+// APP START
+// ================================================
+function startApp() {
+  document.getElementById('authPage').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+
+  let name = currentUser.displayName || currentUser.email.split('@')[0];
+  let initial = name.charAt(0).toUpperCase();
+
+  document.getElementById('profileAvatar').textContent = initial;
+  document.getElementById('profileInitial').textContent = initial;
+  document.getElementById('profileName').textContent = name;
+  document.getElementById('profileEmail').textContent = '📧 ' + currentUser.email;
+
+  // Stats update
+  statSessions++;
+  saveLocal('statSessions', statSessions);
+  updateStatUI();
+
+  // Analytics
+  analytics.logEvent('app_open');
+  analytics.setUserId(currentUser.uid);
+
+  // Wake Lock
+  requestWakeLock();
+
+  applyLang();
+  renderCategories();
+  loadM3U();
+}
+
+// ================================================
+// STATS — LocalStorage mein save hoga
+// ================================================
+function updateStatUI() {
+  document.getElementById('statChannels').textContent = statChannels;
+  document.getElementById('statMins').textContent = statMins;
+  document.getElementById('statSessions').textContent = statSessions;
+}
+
+function saveStats() {
+  if (watchStart) {
+    statMins += Math.floor((Date.now() - watchStart) / 60000);
+    watchStart = null;
+    saveLocal('statMins', statMins);
+  }
+  saveLocal('statChannels', statChannels);
+  saveLocal('statSessions', statSessions);
+  updateStatUI();
+}
+
+setInterval(saveStats, 60000);
+window.addEventListener('beforeunload', saveStats);
+
+// ================================================
+// WAKE LOCK
+// ================================================
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    document.getElementById('wlBadge').style.display = 'inline-flex';
+    document.getElementById('wakeLockStatus').textContent = '✅ Screen on hai — tap karke band karo';
+    wakeLock.addEventListener('release', () => {
+      document.getElementById('wlBadge').style.display = 'none';
+      document.getElementById('wakeLockStatus').textContent = 'Band — tap karke on karo';
+    });
+  } catch(e) {}
+}
+
+async function toggleWakeLock() {
+  if (wakeLock) {
+    await wakeLock.release();
+    wakeLock = null;
+    showToast('🔆 Screen always-on band kiya');
+  } else {
+    await requestWakeLock();
+    if (wakeLock) showToast('🔆 Screen always-on on kiya');
+    else showToast('Is device mein support nahi');
+  }
+}
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && !wakeLock) await requestWakeLock();
+});
+
+// ================================================
+// NOTIFICATIONS
+// ================================================
+async function requestNotif() {
+  try {
+    let p = await Notification.requestPermission();
+    if (p === 'granted') {
+      document.getElementById('notifStatus').textContent = '✅ Notifications on hain';
+      analytics.logEvent('notification_enabled');
+      showToast('🔔 Notifications on ho gayi!');
+    } else {
+      showToast('❌ Permission nahi mili');
+    }
+  } catch(e) { showToast('Notifications support nahi'); }
+}
+
+// ================================================
+// PICTURE IN PICTURE
+// ================================================
+async function startPiP() {
+  let v = document.getElementById('player');
+  if (!v.src) { showToast('Pehle channel select karo'); return; }
+  try {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else {
+      await v.requestPictureInPicture();
+      analytics.logEvent('pip_started');
+      showToast('⧉ PiP on!');
+    }
+  } catch(e) { showToast('PiP is device mein support nahi'); }
+}
+
+// ================================================
+// LANGUAGE
+// ================================================
+function applyLang() {
+  let t = texts[currentLang];
+  document.getElementById('nav-home').textContent = t.home;
+  document.getElementById('nav-profile').textContent = t.profile;
+  document.getElementById('searchInput').placeholder = '🔍 ' + t.search;
+  document.getElementById('loading').textContent = t.loading;
+  document.querySelector('.logout-btn').textContent = t.logout;
+  renderCategories();
+}
+
+function showLangModal() { document.getElementById('langModal').classList.add('show'); }
+function closeLangModal() { document.getElementById('langModal').classList.remove('show'); applyLang(); }
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('zkLang', lang);
+  document.getElementById('langHindi').classList.toggle('on', lang === 'hi');
+  document.getElementById('langEnglish').classList.toggle('on', lang === 'en');
+  document.getElementById('langSub').textContent = lang === 'hi' ? 'हिंदी चुनी गई' : 'English Selected';
+  analytics.logEvent('language_change', { lang });
+}
+
+// ================================================
+// CATEGORIES
+// ================================================
+function renderCategories() {
+  let cats = categories[currentLang];
+  document.getElementById('catScroll').innerHTML = cats.map((c, i) =>
+    `<button class="cat-btn ${i===0?'on':''}" onclick="filterCat('${c}',this)">${c}</button>`
+  ).join('');
+}
+
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  analytics.logEvent('category_filter', { category: cat });
+  filterChannels();
+}
+
+// ================================================
+// M3U CHANNELS
+// ================================================
+async function loadM3U() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('channels').innerHTML = '';
+  try {
+    let res = await fetch('https://iptv-org.github.io/iptv/countries/in.m3u');
+    let text = await res.text();
+    parseM3U(text);
+    analytics.logEvent('channels_loaded');
+  } catch(e) {
+    document.getElementById('channels').innerHTML = '<p style="grid-column:span 2;text-align:center;padding:20px;color:#666">Channels load nahi hue 😢</p>';
+  }
+  document.getElementById('loading').style.display = 'none';
+}
+
+function parseM3U(data) {
+  let lines = data.split('\n');
+  allChannels = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('#EXTINF')) {
+      let name = lines[i].split(',')[1];
+      let groupMatch = lines[i].match(/group-title="([^"]*)"/);
+      let group = groupMatch ? groupMatch[1] : 'Other';
+      let url = lines[i+1] ? lines[i+1].trim() : '';
+      if (url && url.startsWith('http')) {
+        allChannels.push({ name: name ? name.trim() : 'Channel', url, group });
+      }
+    }
+  }
+  filterChannels();
+}
+
+function filterChannels() {
+  let q = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = allChannels.filter(ch => {
+    let matchSearch = ch.name.toLowerCase().includes(q);
+    let cats = categories[currentLang];
+    let allWord = cats[0];
+    let matchCat = currentCat === allWord || ch.group.toLowerCase().includes(currentCat.toLowerCase());
+    return matchSearch && matchCat;
+  });
+  showChannels(filtered);
+}
+
+function showChannels(list) {
+  let box = document.getElementById('channels');
+  box.innerHTML = '';
+  document.getElementById('channelCount').textContent = list.length + ' channels';
+  if (!list.length) {
+    box.innerHTML = '<p style="grid-column:span 2;text-align:center;padding:20px;color:#666">Koi channel nahi mila</p>';
+    return;
+  }
+  list.forEach(ch => {
+    let div = document.createElement('div');
+    div.className = 'channel';
+    div.textContent = ch.name;
+    div.onclick = () => {
+      document.querySelectorAll('.channel').forEach(c => c.classList.remove('active'));
+      div.classList.add('active');
+      play(ch.url, ch.name);
+    };
+    box.appendChild(div);
+  });
+}
+
+// ================================================
+// PLAYER
+// ================================================
+let isFull = false;
+let zoomLevel = 1;
+
+function play(url, name) {
+  let player = document.getElementById('player');
+  player.src = url;
+  player.play().catch(() => {});
+  document.getElementById('nowChannel').textContent = name;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  analytics.logEvent('channel_play', { channel_name: name });
+  if (watchStart) statMins += Math.floor((Date.now() - watchStart) / 60000);
+  watchStart = Date.now();
+  statChannels++;
+  updateStatUI();
+  showToast('▶ ' + name);
+}
+
+function zoomIn() { if(zoomLevel<3){ zoomLevel=Math.min(3,zoomLevel+0.25); applyZoom(); } }
+function zoomOut() { if(zoomLevel>0.5){ zoomLevel=Math.max(0.5,zoomLevel-0.25); applyZoom(); } }
+function zoomReset() { zoomLevel=1; applyZoom(); }
+function applyZoom() {
+  let v = document.getElementById('player');
+  v.style.transform = 'scale(' + zoomLevel + ')';
+  v.style.transformOrigin = 'center center';
+  v.style.height = zoomLevel > 1 ? (56*zoomLevel)+'vw' : '56vw';
+  v.style.maxHeight = zoomLevel > 1 ? (280*zoomLevel)+'px' : '280px';
+}
+
+function goFullscreen() {
+  if(isFull) { exitFs(); return; }
+  let v = document.getElementById('player');
+  try {
+    if(v.webkitEnterFullscreen) { v.webkitEnterFullscreen(); return; }
+    if(v.requestFullscreen) { v.requestFullscreen(); return; }
+    if(v.webkitRequestFullscreen) { v.webkitRequestFullscreen(); return; }
+    if(v.mozRequestFullScreen) { v.mozRequestFullScreen(); return; }
+  } catch(e) {}
+  document.getElementById('playerWrap').classList.add('fs');
+  document.body.style.overflow = 'hidden';
+  isFull = true;
+  try { screen.orientation.lock('landscape').catch(()=>{}); } catch(e) {}
+}
+
+function exitFs() {
+  document.getElementById('playerWrap').classList.remove('fs');
+  document.body.style.overflow = '';
+  isFull = false;
+  try { screen.orientation.unlock(); } catch(e) {}
+  if(document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+  else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+}
+
+window.addEventListener('popstate', exitFs);
+document.addEventListener('fullscreenchange', () => { if(!document.fullscreenElement) exitFs(); });
+document.addEventListener('webkitfullscreenchange', () => { if(!document.webkitFullscreenElement) exitFs(); });
+document.getElementById('player').addEventListener('dblclick', goFullscreen);
+
+// ================================================
+// NAVIGATION
+// ================================================
+function showPage(id, btn) {
+  document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  if (btn) btn.classList.add('on');
+  analytics.logEvent('page_view', { page: id });
+}
+</script>
+</body>
+</html>
